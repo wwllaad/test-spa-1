@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      xmlns:th="http://www.thymeleaf.org"
+      layout:decorate="~{fragments/layout}">
+<head>
+    <title>User secured page</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/15.1.0/react.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/15.1.0/react-dom.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/6.24.0/babel.js"></script>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.3/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-Zug+QiDoJOrZ5t4lssLdxGhVrurbmBWopoEl+M6BdEfwnCJZtKxi1KgxUyJq13dy" crossorigin="anonymous">
+</head>
+<body>
+<div layout:fragment="content" th:remove="tag">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        class App extends React.Component {
+            constructor(props) {
+                super(props);
+                this.state = {
+                    users: [],
+                };
+            }
+
+            componentDidMount() {
+                this.loadUsersFromServer();
+            }
+
+            // Load Users from database
+            loadUsersFromServer() {
+                fetch('http://localhost:8080/api/users',
+                    {credentials: 'same-origin'})
+                    .then((response) => response.json())
+                    .then((responseData) => {
+                        this.setState({
+                            users: responseData._embedded.users
+                        });
+                    },
+                render() {
+                    return (
+                            <div>
+                                <UserTable users={this.state.users}/>
+                            </div>
+                    );
+                }
+            }
+        }
+
+            class UserTable extends React.Component {
+            constructor(props) {
+                super(props);
+            }
+
+            render() {
+                var users = this.props.users.map(user =>
+                        <User key={user._links.self.href} user={user}/>
+                );
+                return (
+
+                        <div>
+                            <Navbar>
+                                <Navbar.Header>
+                                    <Navbar.Brand>
+                                        List of Users
+                                    </Navbar.Brand>
+                                </Navbar.Header>
+                            </Navbar>
+                            <table className="table table-striped">
+                                <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Phone Number</th>
+                                </tr>
+                                </thead>
+                                <tbody>{users}</tbody>
+                            </table>
+                        </div>);
+            }
+        }
+
+        class User extends React.Component {
+            constructor(props) {
+                super(props);
+            }
+            render() {
+                return (
+                        <tr>
+                            <td>{this.props.user.name}</td>
+                            <td>{this.props.user.phone}</td>
+                        </tr>
+                );
+            }
+        }
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+
+    <p><a href="/" th:href="@{/}">Back to home page</a></p>
+</div>
+</body>
+</html>

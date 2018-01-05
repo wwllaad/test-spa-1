@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      xmlns:th="http://www.thymeleaf.org"
+      layout:decorate="~{fragments/layout}">
+<head>
+    <title>Admin secured page</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/15.1.0/react.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/15.1.0/react-dom.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/6.24.0/babel.js"></script>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.3/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-Zug+QiDoJOrZ5t4lssLdxGhVrurbmBWopoEl+M6BdEfwnCJZtKxi1KgxUyJq13dy" crossorigin="anonymous">
+</head>
+<body>
+<div layout:fragment="content" th:remove="tag">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+
+        class App extends React.Component {
+            constructor(props) {
+                super(props);
+                this.deleteUser = this.deleteUser.bind(this);
+                this.createUser = this.createUser.bind(this);
+                this.updateUser = this.updateUser.bind(this);
+                this.state = {
+                    users: [],
+                };
+            }
+
+            componentDidMount() {
+                this.loadUsersFromServer();
+            }
+
+            // Load Users from database
+            loadUsersFromServer() {
+                fetch('http://localhost:8080/api/users',
+                    {credentials: 'same-origin'})
+                    .then((response) => response.json())
+                    .then((responseData) => {
+                        this.setState({
+                            users: responseData._embedded.users
+                    });
+            }
+            // Delete User
+            deleteUser(user) {
+                fetch (user._links.self.href,
+                    { method: 'DELETE',
+                        credentials: 'same-origin'})
+                    .then(
+                        res => this.loadUsersFromServer()
+                    )
+                    .then(() => {
+                        Alert.success('User deleted', {
+                            position: 'bottom-left',
+                            effect: 'slide'
+                        });
+                    })
+                    .catch( err => console.error(err))
+            }
+
+            // Create new User
+            createUser(user){
+                fetch('http://localhost:8080/api/users',
+                    {   method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(user)
+                    })
+                    .then(
+                        res => this.loadUsersFromServer()
+                    )
+                    .catch( err => console.error(err))
+            }
+
+            // Update User
+            updateUser(user){
+                fetch(user.link,
+                    {   method: 'PUT',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(user)
+                    })
+                    .then(
+                        res => this.loadUsersFromServer()
+                    )
+                    .catch( err => console.error(err))
+            }
+
+            render() {
+                return (
+                        <div>
+                            <UserTable users={this.state.users} deleteUser={this.deleteUser}  updateUser={this.updateUser} />
+                            <UserForm createUser={this.createUser}/>
+                            <Alert stack={true} timeout={2000} />
+                        </div>
+                );
+            }
+        }
+        }
+
+        class UserTable extends React.Component {
+            constructor(props) {
+                super(props);
+            }
+
+            render() {
+                var users = this.props.users.map(user =>
+                        <User key={user._links.self.href} user={user} deleteUser={this.props.deleteUser} updateUser={this.props.updateUser} />
+                );
+
+                return (
+
+                        <div>
+                            <Navbar>
+                                <Navbar.Header>
+                                    <Navbar.Brand>
+                                        List of Users
+                                    </Navbar.Brand>
+                                </Navbar.Header>
+                            </Navbar>
+                            <table className="table table-striped">
+                                <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Phone Number</th>
+                                </tr>
+                                </thead>
+                                <tbody>{users}</tbody>
+                            </table>
+                        </div>);
+            }
+        }
+
+        class User extends React.Component {
+            constructor(props) {
+                super(props);
+                this.deleteUser = this.deleteUser.bind(this);
+
+            }
+            deleteUser() {
+                this.props.deleteUser(this.props.user);
+            }
+
+            render() {
+                return (
+                        <tr>
+                            <td>{this.props.user.name}</td>
+                            <td>{this.props.user.phone}</td>
+                            <td>
+                                <button className="btn btn-danger btn-xs" onClick={this.deleteUser}>Delete</button>
+                            </td>
+                            <td>
+                                <UserUpdateForm updateUser={this.props.updateUser} user={this.props.user}/>
+                            </td>
+                        </tr>
+                );
+            }
+        }
+
+        class UserForm extends React.Component {
+            constructor(props) {
+                super(props);
+                this.state = {userName: '', userPhone: ''};
+                this.handleSubmit = this.handleSubmit.bind(this);
+                this.handleChange = this.handleChange.bind(this);
+            }
+
+            handleChange(event) {
+                this.setState(
+                    {[event.target.name]: event.target.value}
+                );
+            }
+
+            handleSubmit(event) {
+                event.preventDefault();
+                console.log("User Name: " + this.state.userName, "User Phone Number: " + this.state.userPhone);
+                var newUser = {name: this.state.userName, phone: this.state.userPhone};
+                this.props.createUser(newUser);
+                this.refs.simpleDialog.hide();
+            }
+
+            render() {
+                return (
+                        <div>
+                            <SkyLight hideOnOverlayClicked ref="simpleDialog">
+                                <div className="panel panel-default">
+                                    <div className="panel-heading">Create user</div>
+                                    <div className="panel-body">
+                                        <form className="form">
+                                            <div className="col-md-4">
+                                                <input type="text" placeholder="Name" className="form-control"  name="userName" onChange={this.handleChange}/>
+                                            </div>
+                                            <div>
+                                                <input type="text" placeholder="Phone" className="form-control"  name="userPhone" onChange={this.handleChange}/>
+                                            </div>
+                                            <div className="col-md-2">
+                                                <button className="btn btn-primary" onClick={this.handleSubmit}>Save</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </SkyLight>
+                            <div className="col-md-2">
+                                <button className="btn btn-primary" onClick={() => this.refs.simpleDialog.show()}>Add new user</button>
+                            </div>
+                        </div>
+                );
+            }
+        }
+
+        class UserUpdateForm extends React.Component {
+            constructor(props) {
+                super(props);
+                this.state = {userName: this.props.user.name, userPhone: this.state.userPhone};
+                this.handleSubmit = this.handleSubmit.bind(this);
+                this.handleChange = this.handleChange.bind(this);
+            }
+
+            handleChange(event) {
+                this.setState(
+                    {[event.target.name]: event.target.value}
+                );
+            }
+
+            handleSubmit(event) {
+                event.preventDefault();
+                var updUser = {link: this.props.user._links.self.href ,name: this.state.userName, phone: this.state.userPhone};
+                this.props.updateUser(updUser);
+                this.refs.editDialog.hide();
+            }
+
+            render() {
+                return (
+                        <div>
+                            <SkyLight hideOnOverlayClicked ref="editDialog">
+                                <div className="panel panel-default">
+                                    <div className="panel-heading">Edit user</div>
+                                    <div className="panel-body">
+                                        <form className="form">
+                                            <div className="col-md-4">
+                                                <input type="text" placeholder="User Name" className="form-control"  name="userName" value={this.state.userName} onChange={this.handleChange}/>
+                                            </div>
+                                            <div className="col-md-4">
+                                                <input type="text" placeholder="User Phone" className="form-control"  name="userPhone" value={this.state.userPhone} onChange={this.handleChange}/>
+                                            </div>
+                                            <div className="col-md-2">
+                                                <button className="btn btn-primary" onClick={this.handleSubmit}>Save</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </SkyLight>
+                            <div>
+                                <button className="btn btn-primary btn-xs" onClick={() => this.refs.editDialog.show()}>Edit</button>
+                            </div>
+                        </div>
+                );
+            }
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+
+    <p><a href="/" th:href="@{/}">Back to home page</a></p>
+</div>
+</body>
+</html>
